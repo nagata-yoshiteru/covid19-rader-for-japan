@@ -2,9 +2,70 @@
 import { useState, useCallback } from 'react'
 import { useDispatch } from 'react-redux'
 import { patientActions } from "../redux/module/patient";
-import { Patient } from "../types";
-import { GoogleSheetsAPI } from "../api"
+import { Patient, Sex } from "../types";
+import { API } from "../api"
 import { Status } from "../types/app";
+import moment from 'moment';
+import { prefectures } from './prefecture';
+
+
+const mockPatients: Patient[] = [
+    {
+        ID: "0",
+        Residence: "北海道",
+        Age: 20,
+        Sex: Sex.FEMALE,
+        Occupation: "医者",
+        Prefecture: prefectures[0],
+        ActionHistory: "", // 行動歴
+        SymptomHistory: "",	// 症状・経過
+        FeverDate: moment(),  // 発熱観察日 
+        ConsultationDate: moment(), // 受診日
+        PublicationDate: moment(), // 公表日
+        RecoveryDate: moment(),  // 回復日
+        OverseasTravelFlag: true, // 海外渡航フラグ
+        OverseasTravelName: "China",  // 渡航先
+        CloseContact: "", // 濃厚接触者情報
+        Source: "http://"  // 情報源
+    },
+    {
+        ID: "1",
+        Residence: "愛知県",
+        Age: 20,
+        Sex: Sex.FEMALE,
+        Occupation: "医者",
+        Prefecture: prefectures[0],
+        ActionHistory: "", // 行動歴
+        SymptomHistory: "",	// 症状・経過
+        FeverDate: moment(),  // 発熱観察日 
+        ConsultationDate: moment(), // 受診日
+        PublicationDate: moment(), // 公表日
+        RecoveryDate: moment(),  // 回復日
+        OverseasTravelFlag: true, // 海外渡航フラグ
+        OverseasTravelName: "China",  // 渡航先
+        CloseContact: "", // 濃厚接触者情報
+        Source: "http://"  // 情報源
+    },
+    {
+        ID: "2",
+        Residence: "東京都",
+        Age: 20,
+        Sex: Sex.FEMALE,
+        Occupation: "医者",
+        Prefecture: prefectures[0],
+        ActionHistory: "", // 行動歴
+        SymptomHistory: "",	// 症状・経過
+        FeverDate: moment(),  // 発熱観察日 
+        ConsultationDate: moment(), // 受診日
+        PublicationDate: moment(), // 公表日
+        RecoveryDate: moment(),  // 回復日
+        OverseasTravelFlag: true, // 海外渡航フラグ
+        OverseasTravelName: "China",  // 渡航先
+        CloseContact: "", // 濃厚接触者情報
+        Source: "http://"  // 情報源
+    },
+]
+
 
 /////////////////////////////////////////////////
 //////////          Get Patient             /////
@@ -13,7 +74,7 @@ import { Status } from "../types/app";
 export const useGetPatients = () => {
     const [status, setStatus] = useState<Status>({ Progress: 0, Log: "", Error: "", Loading: false })
     const dispatch = useDispatch()
-    const api = new GoogleSheetsAPI()
+    const api = new API("https://covid19-rader-for-japan.appspot.com")
 
     const getPatients = useCallback(async () => {
         try {
@@ -22,7 +83,10 @@ export const useGetPatients = () => {
 
             // get patients
             const patientsInfoJson = await api.getPatients()
-            const patientsInfo: Patient[] = convertJsonToPatients(patientsInfoJson)
+            let patientsInfo: Patient[] = convertJsonToPatients(patientsInfoJson)
+
+            //awsTest()
+            patientsInfo = removeMissingValues(patientsInfo)
 
             // userInfoをstore
             dispatch(patientActions.updatePatientInfo(patientsInfo))
@@ -39,9 +103,37 @@ export const useGetPatients = () => {
     return { "getPatients": getPatients, "status": status }
 }
 
+
 /////////////////////////////////////////////////
 //////////              Util               /////
 ////////////////////////////////////////////////
+
+const removeMissingValues = (patients: Patient[]) => {
+    const result: Patient[] = []
+    let removeCount = 0
+    patients.forEach((patient) => {
+        // 都道府県名が間違っているものを省く
+        // 2019年以下を省く
+        const prefName = patient.Prefecture.Name
+        const date = patient.PublicationDate
+        if (date.isSameOrAfter('2020-1-1', 'year') && isExistPref(prefName)) {
+            result.push(patient)
+        } else {
+            removeCount++
+        }
+    })
+    console.log("Missing Value Num: ", removeCount)
+
+    return result
+}
+
+const isExistPref = (prefName: string) => {
+    return prefectures.map((pref) => {
+        if (prefName === pref.Name) {
+            return true
+        }
+    })
+}
 
 const convertJsonToPatients = (patientsJson: any) => {
     const patients: Patient[] = []
@@ -50,7 +142,7 @@ const convertJsonToPatients = (patientsJson: any) => {
             ID: pjson.ID,
             Residence: pjson.Residence,
             Age: pjson.Age,
-            Sex: pjson.Sex,
+            Sex: pjson.Sex === 0 ? Sex.MALE : Sex.FEMALE,
             Occupation: pjson.Occupation,
             Prefecture: {
                 ID: pjson.Prefecture.ID,
@@ -60,10 +152,10 @@ const convertJsonToPatients = (patientsJson: any) => {
             },
             ActionHistory: pjson.ActionHistory,
             SymptomHistory: pjson.SymptomHistory,
-            FeverDate: pjson.FeverDate,
-            ConsultationDate: pjson.ConsultationDate,
-            PublicationDate: pjson.PublicationDate,
-            RecoveryDate: pjson.RecoveryDate,
+            FeverDate: moment(pjson.FeverDate, 'YYYY/MM/DD'),
+            ConsultationDate: moment(pjson.ConsultationDate, 'YYYY/MM/DD'),
+            PublicationDate: moment(pjson.PublicationDate, 'YYYY/MM/DD'),
+            RecoveryDate: moment(pjson.RecoveryDate, 'YYYY/MM/DD'),
             OverseasTravelFlag: pjson.OverseasTravelFlag,
             OverseasTravelName: pjson.OverseasTravelName,
             CloseContact: pjson.CloseContact,
