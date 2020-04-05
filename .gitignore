@@ -26,3 +26,12 @@ yarn-debug.log*
 yarn-error.log*
 
 *.exe
+
+# env
+secret.yaml
+.env
+
+# kubenetes
+frontend.yaml
+backend.yaml
+backend-calculator.yaml
